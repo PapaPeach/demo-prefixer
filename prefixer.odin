@@ -9,9 +9,10 @@ MAP_DIRS :: [2]string{"maps", "download/maps"} // Convert to use this instead of
 CFG_DIR :: "custom/demo-prefixer/cfg"
 
 main :: proc() {
+	madeDir: bool
 	// Iterate through different map directories
-	filteredMaps := make([dynamic]string, context.temp_allocator)
 	for dir, i in MAP_DIRS {
+		filteredMaps := make([dynamic]string, context.temp_allocator)
 		fmt.printfln("Searching tf/%v directory for maps...", dir)
 		mapsHandle, mhEr := os.open(dir)
 		if mhEr != nil {
@@ -33,28 +34,45 @@ main :: proc() {
 			// Remove maps with existing config files or non-map files
 			switch {
 			// Skip
-			case i == len(maps) - 1 || !strings.ends_with(m.name, ".bsp"):
+			case i >= len(maps) - 1:
+			// Remove map from filtered if wierd naming lets it slip in
+			case i > 0 &&
+			     strings.ends_with(maps[i + 1].name, ".cfg") &&
+			     strings.contains(filteredMaps[len(filteredMaps) - 1], mapName):
+				fmt.printfln(
+					"Found config file: %v for map: %v\nSkipping this map...",
+					maps[i + 1].name,
+					m.name,
+				)
+				unordered_remove(&filteredMaps, len(filteredMaps) - 1)
 			// file is a config for an existing map
 			case strings.ends_with(maps[i + 1].name, ".cfg") &&
 			     strings.contains(maps[i + 1].name, mapName):
-				fmt.printf(
-					"Found config file: %v for map: %v\nSkipping this map...\n",
+				fmt.printfln(
+					"Found config file: %v for map: %v\nSkipping this map...",
 					maps[i + 1].name,
-					mapName,
+					m.name,
 				)
 			// Map should be added
+			case !strings.ends_with(m.name, ".bsp"):
+				fmt.printfln("Skipping: %v, not a map.", m.name)
 			case:
 				append(&filteredMaps, mapName)
 			}
 		}
+
+		// Generate tf/custom/demo-prefixer/cfg if not done yet
+		if !madeDir {
+			make_cfg_dir()
+			madeDir = true
+		}
+
+		write_cfgs(filteredMaps)
+
+		free_all(context.temp_allocator)
+
 		fmt.println()
 	}
-
-	make_cfg_dir()
-
-	write_cfgs(filteredMaps)
-
-	free_all(context.temp_allocator)
 
 	press_to_exit()
 }
@@ -81,9 +99,14 @@ make_cfg_dir :: proc() {
 
 write_cfgs :: proc(filteredMaps: [dynamic]string) {
 	// Make cfg files
+	fmt.printfln(
+		"Starting generation with \"%v\", ending with \"%v\"",
+		filteredMaps[0],
+		filteredMaps[len(filteredMaps) - 1],
+	)
 	for m, i in filteredMaps {
 		// Create file
-		cfgFile := strings.concatenate({CFG_DIR, "/", m, ".cfg"})
+		cfgFile := fmt.tprintf("%v/%v.cfg", CFG_DIR, m)
 		_ = os.write_entire_file_or_err(cfgFile, nil)
 		// Open file
 		cfgHandle, cfghEr := os.open(cfgFile, os.O_RDWR)
@@ -102,6 +125,8 @@ write_cfgs :: proc(filteredMaps: [dynamic]string) {
 			fmt.panicf("Error writing cfg contents to file: ", cfgFile)
 		}
 	}
+
+	fmt.printfln("Generated %v config files", len(filteredMaps))
 }
 
 press_to_exit :: proc() {
