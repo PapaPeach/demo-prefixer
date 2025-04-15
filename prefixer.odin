@@ -5,17 +5,24 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 
-MAP_DIRS :: [2]string{"maps", "download/maps"} // Convert to use this instead of of the maps file
+MAP_DIRS :: [3]string{"maps", "download/maps", "workshop/content/maps"}
 CFG_DIR :: "custom/demo-prefixer/cfg"
 
 main :: proc() {
 	madeDir: bool
 	// Iterate through different map directories
 	for dir, i in MAP_DIRS {
-		filteredMaps := make([dynamic]string, context.temp_allocator)
 		fmt.printfln("Searching tf/%v directory for maps...", dir)
+
+		filteredMaps := make([dynamic]string, context.temp_allocator)
 		mapsHandle, mhEr := os.open(dir)
-		if mhEr != nil {
+		switch {
+		// If file doesn't exits, skip it
+		case strings.equal_fold(os.error_string(mhEr), "file does not exist"):
+			continue
+		// Unexpected error
+		case mhEr != nil:
+			fmt.println(os.error_string(mhEr))
 			panic("Failed to convert maps path to handle")
 		}
 		defer os.close(mapsHandle)
@@ -27,6 +34,7 @@ main :: proc() {
 		}
 
 		// Filter map names
+		// TODO: maps folders shouldn't contain .cfgs and only .bsps should be loaded
 		for m, i in maps {
 			// Remove file extension
 			mapName, _ := strings.substring_to(m.name, strings.index(m.name, "."))
