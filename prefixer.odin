@@ -7,9 +7,18 @@ import "core:strings"
 
 MAP_DIRS :: [3]string{"maps", "download/maps", "workshop/content/maps"}
 CFG_DIR :: "custom/demo-prefixer/cfg"
+COMP_GAMEMODES :: []string{"ad", "bball", "cp", "koth", "pl", "ultiduo", "ultitrio"}
+MAP_SUFFIXES :: [5]string{"_a", "_b", "_f", "_rc", "_v"}
 
 main :: proc() {
+	hasCompOnly: bool
+	hasNoSuffix: bool
+	compOnly: bool
+	noSuffix: bool
 	madeDir: bool
+
+	fmt.println(os.args[1:])
+
 	// Iterate through different map directories
 	for dir, i in MAP_DIRS {
 		fmt.printfln("Searching tf/%v directory for maps...", dir)
@@ -30,43 +39,96 @@ main :: proc() {
 		// Get contents of maps directory
 		maps, mEr := os.read_dir(mapsHandle, 0, context.temp_allocator)
 		if mEr != nil {
-			panic("Failed to get contents of tf/maps")
+			msg := fmt.tprintfln("Failed to get contents of tf/%v", dir)
+			panic(msg)
 		}
 
 		// Filter map names
-		// TODO: maps folders shouldn't contain .cfgs and only .bsps should be loaded
-		for m, i in maps {
+		for m in maps {
 			// Remove file extension
-			mapName, _ := strings.substring_to(m.name, strings.index(m.name, "."))
-
-			// Remove maps with existing config files or non-map files
-			switch {
-			// Skip
-			case i >= len(maps) - 1:
-			// Remove map from filtered if wierd naming lets it slip in
-			case i > 0 &&
-			     strings.ends_with(maps[i + 1].name, ".cfg") &&
-			     strings.contains(filteredMaps[len(filteredMaps) - 1], mapName):
-				fmt.printfln(
-					"Found config file: %v for map: %v\nSkipping this map...",
-					maps[i + 1].name,
-					m.name,
-				)
-				unordered_remove(&filteredMaps, len(filteredMaps) - 1)
-			// file is a config for an existing map
-			case strings.ends_with(maps[i + 1].name, ".cfg") &&
-			     strings.contains(maps[i + 1].name, mapName):
-				fmt.printfln(
-					"Found config file: %v for map: %v\nSkipping this map...",
-					maps[i + 1].name,
-					m.name,
-				)
-			// Map should be added
-			case !strings.ends_with(m.name, ".bsp"):
-				fmt.printfln("Skipping: %v, not a map.", m.name)
-			case:
-				append(&filteredMaps, mapName)
+			mapName, mnEr := strings.substring_to(m.name, strings.index(m.name, "."))
+			if !mnEr {
+				fmt.printfln("Could not get map name for %v", m.name)
+				continue
 			}
+
+			// Only add maps
+			if strings.ends_with(m.name, ".bsp") {
+				append(&filteredMaps, mapName)
+			} else {
+				fmt.printfln("Skipping: %v, not a map.", m.name)
+			}
+		}
+
+		// Customize map names based on user input / commandline args
+		if len(os.args) > 1 { 	// Has commandline args
+			// CompOnly arg
+			if slice.contains(os.args[1:], "componly") || slice.contains(os.args[1:], "CompOnly") {
+				hasCompOnly = true
+				compOnly = true
+			}
+			// NoSuffix arg
+			if slice.contains(os.args[1:], "nosuffix") || slice.contains(os.args[1:], "NoSuffix") {
+				hasNoSuffix = true
+				noSuffix = true
+			}
+			// Silent arg
+			if slice.contains(os.args[1:], "silent") || slice.contains(os.args[1:], "Silent") {
+				hasCompOnly = true
+				hasNoSuffix = true
+				fmt.println(hasCompOnly, hasNoSuffix)
+			}
+		}
+		for !hasCompOnly { 	// User input for CompOnly
+			buf: [256]byte
+			fmt.println(
+				"\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)? [Y] / [N]",
+			)
+			r, coEr := os.read(os.stdin, buf[:])
+			if coEr != nil {
+				panic("Error getting user input for CompOnly")
+			}
+			response := strings.trim_right_space(string(buf[:r]))
+			switch {
+			case strings.equal_fold(response, "y") || strings.equal_fold(response, "yes"):
+				hasCompOnly = true
+				compOnly = true
+				fmt.println("Generating map prefixes for competitive gamemodes only")
+			case strings.equal_fold(response, "n") || strings.equal_fold(response, "no"):
+				hasCompOnly = true
+				compOnly = false
+				fmt.println("Generating map prefixes for all gamemodes")
+			}
+		}
+		for !hasNoSuffix { 	// User input for NoSuffix
+			buf: [256]byte
+			fmt.println(
+				"\nWould you like to remove suffixes from map name prefixes? [Y] / [N]\nExample: cp_process_f12 -> cp_process",
+			)
+			r, nsEr := os.read(os.stdin, buf[:])
+			if nsEr != nil {
+				panic("Error getting user input for NoSuffix")
+			}
+			response := strings.trim_right_space(string(buf[:r]))
+			fmt.printfln("Responded: %v", response)
+			switch {
+			case strings.equal_fold(response, "y") || strings.equal_fold(response, "yes"):
+				hasNoSuffix = true
+				noSuffix = true
+				fmt.println("Generating map prefixes without suffixes")
+			case strings.equal_fold(response, "n") || strings.equal_fold(response, "no"):
+				hasNoSuffix = true
+				noSuffix = false
+				fmt.println("Generating map prefixes with suffixes")
+			}
+		}
+
+		// Only apply prefix customizations if relevant
+		mapNames: [dynamic]string
+		if compOnly || noSuffix {
+			filteredMaps, mapNames = customize_maps(filteredMaps, compOnly, noSuffix)
+		} else {
+			mapNames = filteredMaps
 		}
 
 		// Generate tf/custom/demo-prefixer/cfg if not done yet
@@ -75,14 +137,61 @@ main :: proc() {
 			madeDir = true
 		}
 
-		write_cfgs(filteredMaps)
+		write_cfgs(filteredMaps, mapNames)
 
 		free_all(context.temp_allocator)
 
 		fmt.println()
 	}
 
+	// Don't wait for input if the user has opted for silent
+	if slice.contains(os.args[1:], "silent") || slice.contains(os.args[1:], "Silent") {
+		os.exit(0)
+	}
 	press_to_exit()
+}
+
+customize_maps :: proc(
+	maps: [dynamic]string,
+	compOnly: bool,
+	noSuffix: bool,
+) -> (
+	[dynamic]string,
+	[dynamic]string,
+) {
+	filteredMaps: [dynamic]string
+	if compOnly {
+		for m in maps {
+			prefix, _ := strings.substring_to(m, strings.index(m, "_"))
+			if slice.contains(COMP_GAMEMODES, prefix) { 	// Add if comp gamemode
+				append(&filteredMaps, m)
+			}
+		}
+	} else {
+		filteredMaps = maps
+	}
+
+	mapNames: [dynamic]string
+	if noSuffix {
+		for m, i in filteredMaps {
+			suffixFound: bool
+			if strings.count(m, "_") > 1 { 	// Check if prefix exists
+				suffix, _ := strings.substring_from(m, strings.last_index(m, "_"))
+				for s in MAP_SUFFIXES { 	// If suffix is one that should be removed
+					if strings.starts_with(suffix, s) {
+						name, _ := strings.substring_to(m, strings.last_index(m, "_"))
+						suffixFound = true
+						append(&mapNames, name)
+						break
+					}
+				}
+			}
+			if !suffixFound { 	// Suffix not removed
+				append(&mapNames, m)
+			}
+		}
+	}
+	return filteredMaps, mapNames
 }
 
 make_cfg_dir :: proc() {
@@ -105,7 +214,7 @@ make_cfg_dir :: proc() {
 	}
 }
 
-write_cfgs :: proc(filteredMaps: [dynamic]string) {
+write_cfgs :: proc(filteredMaps: [dynamic]string, mapNames: [dynamic]string) {
 	// Make cfg files
 	fmt.printfln(
 		"Starting generation with \"%v\", ending with \"%v\"",
@@ -124,7 +233,7 @@ write_cfgs :: proc(filteredMaps: [dynamic]string) {
 		defer os.close(cfgHandle)
 
 		// Generate contents
-		cfgContents := strings.concatenate({"ds_prefix ", m})
+		cfgContents := strings.concatenate({"ds_prefix ", mapNames[i]})
 
 		// Write file
 		_, wsEr := os.write_string(cfgHandle, cfgContents)
