@@ -2,22 +2,31 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 
+WISH_DIR :: "tf/custom"
 MAP_DIRS :: [3]string{"maps", "download/maps", "workshop/content/maps"}
 CFG_DIR :: "custom/demo-prefixer/cfg"
 COMP_GAMEMODES :: []string{"ad", "bball", "cp", "koth", "pl", "ultiduo", "ultitrio"}
 MAP_SUFFIXES :: [5]string{"_a", "_b", "_f", "_rc", "_v"}
 
 main :: proc() {
+	// Check program location
+	currentDir := check_dir()
+	tfDir, _ := strings.substring_to(currentDir, strings.last_index(currentDir, "/"))
+	os.set_current_directory(tfDir)
+
+	if len(os.args) > 1 {
+		fmt.println("Commandline arguments: ", os.args[1:])
+	}
+
 	hasCompOnly: bool
 	hasNoSuffix: bool
 	compOnly: bool
 	noSuffix: bool
 	madeDir: bool
-
-	fmt.println(os.args[1:])
 
 	// Iterate through different map directories
 	for dir, i in MAP_DIRS {
@@ -148,7 +157,21 @@ main :: proc() {
 	if slice.contains(os.args[1:], "silent") || slice.contains(os.args[1:], "Silent") {
 		os.exit(0)
 	}
+	fmt.println("Program complete.")
 	press_to_exit()
+}
+
+check_dir :: proc() -> string {
+	currentDir, _ := filepath.to_slash(os.get_current_directory(context.temp_allocator))
+	fmt.printfln("Current directory: %v", currentDir)
+	if !strings.ends_with(currentDir, WISH_DIR) {
+		fmt.printfln(
+			"Program is currently in: \"%v\"\nPlease put program into your \"tf/custom\" folder.",
+			currentDir,
+		)
+		press_to_exit()
+	}
+	return currentDir
 }
 
 customize_maps :: proc(
@@ -190,6 +213,8 @@ customize_maps :: proc(
 				append(&mapNames, m)
 			}
 		}
+	} else { 	// Set map names to their file name
+		mapNames = filteredMaps
 	}
 	return filteredMaps, mapNames
 }
@@ -247,8 +272,8 @@ write_cfgs :: proc(filteredMaps: [dynamic]string, mapNames: [dynamic]string) {
 }
 
 press_to_exit :: proc() {
+	fmt.print("Press Enter to exit")
 	buf: [256]byte
-	fmt.print("Program complete.\nPress Enter to exit: ")
 	n, _ := os.read(os.stdin, buf[:])
 
 	// Wait for input to proceed

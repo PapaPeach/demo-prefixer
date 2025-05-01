@@ -1,4 +1,3 @@
+*.bat
 *.exe
-custom/*
-download/*
-maps*
+tf/*
