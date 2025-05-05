@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-const WISH_DIR = "tf" + string(filepath.Separator) + "custom"
-const CFG_DIR = "custom" + string(filepath.Separator) + "demo-prefixer" + string(filepath.Separator) + "cfg"
+const WishDir = "tf" + string(filepath.Separator) + "custom"
+const CfgDir = "custom" + string(filepath.Separator) + "demo-prefixer" + string(filepath.Separator) + "cfg"
 
 var mapDirs = [3]string{"maps", "download" + string(filepath.Separator) + "maps", "workshop" + string(filepath.Separator) + "content" + string(filepath.Separator) + "maps"}
 var compGamemodes = []string{"ad", "bball", "cp", "koth", "pl", "ultiduo", "ultitrio"}
@@ -21,7 +21,10 @@ func main() {
 	// Check program location
 	currentDir := CheckDir()
 	tfDir := currentDir[:strings.LastIndex(currentDir, string(filepath.Separator))]
-	os.Chdir(tfDir)
+	err := os.Chdir(tfDir)
+	if err != nil {
+		panic("Could not change working directory to tf")
+	}
 
 	if len(os.Args) > 1 {
 		fmt.Println("Commandline arguments:", os.Args[1:])
@@ -38,21 +41,21 @@ func main() {
 		fmt.Printf("Searching tf/%v directory for maps...", dir)
 
 		var filteredMaps []string
-		mapsHandle, err := os.Open(dir)
+		mapsHandle, mhErr := os.Open(dir)
 		switch {
 		// If file doesn't exist, skip it
-		case errors.Is(err, os.ErrNotExist):
+		case errors.Is(mhErr, os.ErrNotExist):
 			continue
 		// Unexpected error
-		case err != nil:
-			fmt.Println(err)
+		case mhErr != nil:
+			fmt.Println(mhErr)
 			panic("Failed to convert maps path to handle")
 		}
 		defer mapsHandle.Close()
 
 		// Get contents of maps directory
-		maps, err := mapsHandle.Readdirnames(0)
-		if err != nil {
+		maps, mErr := mapsHandle.Readdirnames(0)
+		if mErr != nil {
 			panic("Failed to get contents of tf/" + dir)
 		}
 
@@ -62,7 +65,7 @@ func main() {
 			if !strings.Contains(m, ".") {
 				continue
 			}
-			mapName := m[:strings.Index(m, ".")]
+			mapName := m[:strings.Index(m, ".")] //noinspection
 
 			// Only add maps
 			if strings.HasSuffix(m, ".bsp") {
@@ -94,8 +97,8 @@ func main() {
 			fmt.Println("\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)? [Y] / [N]")
 
 			reader := bufio.NewReader(os.Stdin)
-			response, err := reader.ReadString('\n')
-			if err != nil {
+			response, rErr := reader.ReadString('\n')
+			if rErr != nil {
 				panic("Error getting user input for CompOnly")
 			}
 			response = strings.TrimSpace(response)
@@ -113,8 +116,8 @@ func main() {
 		for !hasNoSuffix { // User input for NoSuffix
 			fmt.Println("\nWould you like to remove suffixes from map name prefixes? [Y] / [N]\nExample: cp_process_f12 -> cp_process")
 			reader := bufio.NewReader(os.Stdin)
-			response, err := reader.ReadString('\n')
-			if err != nil {
+			response, rErr := reader.ReadString('\n')
+			if rErr != nil {
 				panic("Error getting user input for NoSuffix")
 			}
 			response = strings.TrimSpace(response)
@@ -156,7 +159,7 @@ func CheckDir() string {
 		fmt.Println("Error checking working directory")
 	}
 
-	if !strings.HasSuffix(currentDir, WISH_DIR) {
+	if !strings.HasSuffix(currentDir, WishDir) {
 		fmt.Printf("Program is currently in: \"%v\"\nPlease put program into your \"tf/custom\" folder.\n", currentDir)
 		PressToExit()
 	}
@@ -170,7 +173,7 @@ func CustomizeMaps(maps []string, compOnly bool, noSuffix bool) ([]string, []str
 			if !strings.Contains(m, "_") {
 				continue
 			}
-			prefix := m[:strings.Index(m, "_")]
+			prefix := m[:strings.Index(m, "_")]         //noinspection
 			if slices.Contains(compGamemodes, prefix) { // Add if comp gamemode
 				filteredMaps = append(filteredMaps, m)
 			}
@@ -206,7 +209,7 @@ func CustomizeMaps(maps []string, compOnly bool, noSuffix bool) ([]string, []str
 
 func MakeCfgDir() {
 	// Make tf/custom/demo-prefixer/cfg
-	err := os.MkdirAll(CFG_DIR, os.ModePerm)
+	err := os.MkdirAll(CfgDir, os.ModePerm)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		panic("Failed to make tf/custom/demo-prefixer/cfg")
 	}
@@ -220,7 +223,7 @@ func WriteCfgs(filteredMaps []string, mapNames []string) {
 	)
 	for i, m := range filteredMaps {
 		// Create file
-		cfgFile := fmt.Sprintf("%v%v%v.cfg", CFG_DIR, string(filepath.Separator), m)
+		cfgFile := fmt.Sprintf("%v%v%v.cfg", CfgDir, string(filepath.Separator), m)
 		cfgHandle, err := os.Create(cfgFile)
 		if err != nil {
 			panic("Failed to get cfgHandle")
