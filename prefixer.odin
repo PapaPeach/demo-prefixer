@@ -29,7 +29,7 @@ main :: proc() {
 	madeDir: bool
 
 	// Iterate through different map directories
-	for dir, i in MAP_DIRS {
+	for dir in MAP_DIRS {
 		fmt.printfln("Searching tf/%v directory for maps...", dir)
 
 		filteredMaps := make([dynamic]string, context.temp_allocator)
@@ -85,7 +85,6 @@ main :: proc() {
 			if slice.contains(os.args[1:], "silent") || slice.contains(os.args[1:], "Silent") {
 				hasCompOnly = true
 				hasNoSuffix = true
-				fmt.println(hasCompOnly, hasNoSuffix)
 			}
 		}
 		for !hasCompOnly { 	// User input for CompOnly
@@ -162,8 +161,12 @@ main :: proc() {
 }
 
 check_dir :: proc() -> string {
-	currentDir, _ := filepath.to_slash(os.get_current_directory(context.temp_allocator))
+	currentDir, cdPass := filepath.to_slash(os.get_current_directory(context.temp_allocator))
+	if !cdPass {
+		fmt.println("Error checking working directory")
+	}
 	fmt.printfln("Current directory: %v", currentDir)
+
 	if !strings.ends_with(currentDir, WISH_DIR) {
 		fmt.printfln(
 			"Program is currently in: \"%v\"\nPlease put program into your \"tf/custom\" folder.",
