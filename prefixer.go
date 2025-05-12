@@ -14,7 +14,8 @@ const WishDir = "tf" + string(filepath.Separator) + "custom"
 const CfgDir = "custom" + string(filepath.Separator) + "demo-prefixer" + string(filepath.Separator) + "cfg"
 
 var mapDirs = [3]string{"maps", "download" + string(filepath.Separator) + "maps", "workshop" + string(filepath.Separator) + "content" + string(filepath.Separator) + "maps"}
-var compGamemodes = []string{"ad", "bball", "cp", "koth", "pl", "ultiduo", "ultitrio"}
+var compGamemodes = []string{"cp", "koth", "pl"}
+var compPlusGamemodes = []string{"bball", "cp", "koth", "pass", "pl", "ultiduo", "ultitrio"}
 var mapSuffixes = [5]string{"_a", "_b", "_f", "_rc", "_v"}
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 
 	var hasCompOnly bool
 	var hasNoSuffix bool
-	var compOnly bool
+	var compOnly int
 	var noSuffix bool
 	var madeDir bool
 
@@ -80,7 +81,12 @@ func main() {
 			// CompOnly arg
 			if slices.Contains(os.Args[1:], "componly") || slices.Contains(os.Args[1:], "CompOnly") {
 				hasCompOnly = true
-				compOnly = true
+				compOnly = 1
+			}
+			// CompPlus arg
+			if slices.Contains(os.Args[1:], "compplus") || slices.Contains(os.Args[1:], "CompPlus") {
+				hasCompOnly = true
+				compOnly = 2
 			}
 			// NoSuffix arg
 			if slices.Contains(os.Args[1:], "nosuffix") || slices.Contains(os.Args[1:], "NoSuffix") {
@@ -94,7 +100,7 @@ func main() {
 			}
 		}
 		for !hasCompOnly { // User input for CompOnly
-			fmt.Println("\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)? [Y] / [N]")
+			fmt.Println("\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)?\nYou may also generate for extended competitive gamemodes (bball, passtime, ultiduo, ultitrio): [Y] / [E] / [N]")
 
 			reader := bufio.NewReader(os.Stdin)
 			response, rErr := reader.ReadString('\n')
@@ -105,11 +111,15 @@ func main() {
 			switch {
 			case strings.EqualFold(response, "y") || strings.EqualFold(response, "yes"):
 				hasCompOnly = true
-				compOnly = true
+				compOnly = 1
 				fmt.Println("Generating map prefixes for competitive gamemodes only")
+			case strings.EqualFold(response, "e") || strings.EqualFold(response, "extended"):
+				hasCompOnly = true
+				compOnly = 2
+				fmt.Println("Generating map prefixes for extended competitive gamemodes")
 			case strings.EqualFold(response, "n") || strings.EqualFold(response, "no"):
 				hasCompOnly = true
-				compOnly = false
+				compOnly = 0
 				fmt.Println("Generating map prefixes for all gamemodes")
 			}
 		}
@@ -135,7 +145,7 @@ func main() {
 
 		// Only apply prefix customizations if relevant
 		var mapNames []string
-		if compOnly || noSuffix {
+		if compOnly != 0 || noSuffix {
 			filteredMaps, mapNames = CustomizeMaps(filteredMaps, compOnly, noSuffix)
 		} else {
 			mapNames = filteredMaps
@@ -166,9 +176,10 @@ func CheckDir() string {
 	return currentDir
 }
 
-func CustomizeMaps(maps []string, compOnly bool, noSuffix bool) ([]string, []string) {
+func CustomizeMaps(maps []string, compOnly int, noSuffix bool) ([]string, []string) {
 	var filteredMaps []string
-	if compOnly {
+	switch compOnly {
+	case 1:
 		for _, m := range maps {
 			if !strings.Contains(m, "_") {
 				continue
@@ -178,7 +189,17 @@ func CustomizeMaps(maps []string, compOnly bool, noSuffix bool) ([]string, []str
 				filteredMaps = append(filteredMaps, m)
 			}
 		}
-	} else {
+	case 2:
+		for _, m := range maps {
+			if !strings.Contains(m, "_") {
+				continue
+			}
+			prefix := m[:strings.Index(m, "_")]             //noinspection
+			if slices.Contains(compPlusGamemodes, prefix) { // Add if comp extended gamemode
+				filteredMaps = append(filteredMaps, m)
+			}
+		}
+	default:
 		filteredMaps = maps
 	}
 

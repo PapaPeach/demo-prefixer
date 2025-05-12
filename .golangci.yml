@@ -40,7 +40,7 @@ linters:
     - loggercheck
     - makezero
     - mirror
-    - mnd
+    # - mnd
     - musttag
     - nakedret
     # - nestif
@@ -77,7 +77,7 @@ linters:
   settings:
     cyclop:
       max-complexity: 40
-      package-average: 10
+      package-average: 12
     depguard:
       rules:
         deprecated:

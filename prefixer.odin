@@ -9,7 +9,8 @@ import "core:strings"
 WISH_DIR :: "tf/custom"
 MAP_DIRS :: [3]string{"maps", "download/maps", "workshop/content/maps"}
 CFG_DIR :: "custom/demo-prefixer/cfg"
-COMP_GAMEMODES :: []string{"ad", "bball", "cp", "koth", "pl", "ultiduo", "ultitrio"}
+COMP_GAMEMODES :: []string{"cp", "koth", "pl"}
+COMPPLUS_GAMEMODES :: []string{"bball", "cp", "koth", "pass", "pl", "ultiduo", "ultitrio"}
 MAP_SUFFIXES :: [5]string{"_a", "_b", "_f", "_rc", "_v"}
 
 main :: proc() {
@@ -24,7 +25,7 @@ main :: proc() {
 
 	hasCompOnly: bool
 	hasNoSuffix: bool
-	compOnly: bool
+	compOnly: int
 	noSuffix: bool
 	madeDir: bool
 
@@ -74,7 +75,12 @@ main :: proc() {
 			// CompOnly arg
 			if slice.contains(os.args[1:], "componly") || slice.contains(os.args[1:], "CompOnly") {
 				hasCompOnly = true
-				compOnly = true
+				compOnly = 1
+			}
+			// CompPlus arg
+			if slice.contains(os.args[1:], "compplus") || slice.contains(os.args[1:], "CompPlus") {
+				hasCompOnly = true
+				compOnly = 2
 			}
 			// NoSuffix arg
 			if slice.contains(os.args[1:], "nosuffix") || slice.contains(os.args[1:], "NoSuffix") {
@@ -90,7 +96,7 @@ main :: proc() {
 		for !hasCompOnly { 	// User input for CompOnly
 			buf: [256]byte
 			fmt.println(
-				"\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)? [Y] / [N]",
+				"\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)?\nYou may also generate for extended competitive gamemodes (bball, passtime, ultiduo, ultitrio): [Y] / [E] / [N]",
 			)
 			r, coEr := os.read(os.stdin, buf[:])
 			if coEr != nil {
@@ -100,11 +106,15 @@ main :: proc() {
 			switch {
 			case strings.equal_fold(response, "y") || strings.equal_fold(response, "yes"):
 				hasCompOnly = true
-				compOnly = true
+				compOnly = 1
 				fmt.println("Generating map prefixes for competitive gamemodes only")
+			case strings.equal_fold(response, "e") || strings.equal_fold(response, "extended"):
+				hasCompOnly = true
+				compOnly = 2
+				fmt.println("Generating map prefixes for extended competitive gamemodes")
 			case strings.equal_fold(response, "n") || strings.equal_fold(response, "no"):
 				hasCompOnly = true
-				compOnly = false
+				compOnly = 0
 				fmt.println("Generating map prefixes for all gamemodes")
 			}
 		}
@@ -133,7 +143,7 @@ main :: proc() {
 
 		// Only apply prefix customizations if relevant
 		mapNames: [dynamic]string
-		if compOnly || noSuffix {
+		if compOnly != 0 || noSuffix {
 			filteredMaps, mapNames = customize_maps(filteredMaps, compOnly, noSuffix)
 		} else {
 			mapNames = filteredMaps
@@ -179,21 +189,29 @@ check_dir :: proc() -> string {
 
 customize_maps :: proc(
 	maps: [dynamic]string,
-	compOnly: bool,
+	compOnly: int,
 	noSuffix: bool,
 ) -> (
 	[dynamic]string,
 	[dynamic]string,
 ) {
 	filteredMaps: [dynamic]string
-	if compOnly {
+	switch compOnly {
+	case 1:
 		for m in maps {
 			prefix, _ := strings.substring_to(m, strings.index(m, "_"))
 			if slice.contains(COMP_GAMEMODES, prefix) { 	// Add if comp gamemode
 				append(&filteredMaps, m)
 			}
 		}
-	} else {
+	case 2:
+		for m in maps {
+			prefix, _ := strings.substring_to(m, strings.index(m, "_"))
+			if slice.contains(COMPPLUS_GAMEMODES, prefix) { 	// Add if comp extended gamemode
+				append(&filteredMaps, m)
+			}
+		}
+	case:
 		filteredMaps = maps
 	}
 
