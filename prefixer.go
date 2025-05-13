@@ -100,7 +100,7 @@ func main() {
 			}
 		}
 		for !hasCompOnly { // User input for CompOnly
-			fmt.Println("\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)?\nYou may also generate for extended competitive gamemodes (bball, passtime, ultiduo, ultitrio): [Y] / [E] / [N]")
+			fmt.Println("\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)?\nYou may also generate for extended competitive gamemodes (bball, passtime, ultiduo, ultitrio)\n[Y] Yes\n[N] No\n[E] Extended")
 
 			reader := bufio.NewReader(os.Stdin)
 			response, rErr := reader.ReadString('\n')
@@ -124,7 +124,7 @@ func main() {
 			}
 		}
 		for !hasNoSuffix { // User input for NoSuffix
-			fmt.Println("\nWould you like to remove suffixes from map name prefixes? [Y] / [N]\nExample: cp_process_f12 -> cp_process")
+			fmt.Println("\nWould you like to remove suffixes from map name prefixes?\nExample: cp_process_f12 -> cp_process\n[Y] Yes\n[N] No")
 			reader := bufio.NewReader(os.Stdin)
 			response, rErr := reader.ReadString('\n')
 			if rErr != nil {

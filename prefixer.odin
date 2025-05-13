@@ -96,7 +96,7 @@ main :: proc() {
 		for !hasCompOnly { 	// User input for CompOnly
 			buf: [256]byte
 			fmt.println(
-				"\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)?\nYou may also generate for extended competitive gamemodes (bball, passtime, ultiduo, ultitrio): [Y] / [E] / [N]",
+				"\nWould you like to generate prefixes only for competitive gamemodes (AD, CP, PL, KOTH)?\nYou may also generate for extended competitive gamemodes (bball, passtime, ultiduo, ultitrio)\n[Y] Yes\n[N] No\n[E] Extended",
 			)
 			r, coEr := os.read(os.stdin, buf[:])
 			if coEr != nil {
@@ -121,7 +121,7 @@ main :: proc() {
 		for !hasNoSuffix { 	// User input for NoSuffix
 			buf: [256]byte
 			fmt.println(
-				"\nWould you like to remove suffixes from map name prefixes? [Y] / [N]\nExample: cp_process_f12 -> cp_process",
+				"\nWould you like to remove suffixes from map name prefixes?\nExample: cp_process_f12 -> cp_process\n[Y] Yes\n[N] No",
 			)
 			r, nsEr := os.read(os.stdin, buf[:])
 			if nsEr != nil {
