@@ -1,4 +1,3 @@
-*.bat
 *.exe
 *.zip
-test/*
+test*/*
