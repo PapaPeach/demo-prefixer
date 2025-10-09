@@ -12,7 +12,7 @@ import (
 const mapStart = 536
 const mapLength = 260
 
-var mapSuffixes = [5]string{"_a", "_b", "_f", "_rc", "_v"}
+var mapSuffixes = [5]string{"rc", "f", "b", "a", "v"}
 
 func main() {
 	// Open current directory
@@ -74,13 +74,15 @@ func main() {
 			}
 			file.Close()
 
-			// Remove map version suffixes
+			// Check if map has as suffix and remove if it is a version number
+			prefixIndex := strings.Index(mapName, "_")
 			suffixIndex := strings.LastIndex(mapName, "_")
-			if suffixIndex > 3 { // We skip when "suffix" is just the map prefix
-				mapTail := mapName[suffixIndex:]
-				for _, suffix := range mapSuffixes {
+			if prefixIndex > 1 && prefixIndex != suffixIndex { // Skip when "suffix" is just the map prefix
+				mapTail := mapName[suffixIndex+1:]
+				for _, suffix := range mapSuffixes { // remove if suffix is a version number
 					if strings.HasPrefix(mapTail, suffix) {
 						mapName = mapName[:suffixIndex]
+						break
 					}
 				}
 			}
