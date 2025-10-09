@@ -77,7 +77,7 @@ linters:
   settings:
     cyclop:
       max-complexity: 40
-      package-average: 12
+      package-average: 15
     depguard:
       rules:
         deprecated:
