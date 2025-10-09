@@ -15,24 +15,30 @@ const mapLength = 260
 var mapSuffixes = [5]string{"rc", "f", "b", "a", "v"}
 
 func main() {
-	// Open current directory
-	workingDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("Error getting working directory:", err)
+	// Get working directory
+	workingDir, wderr := os.Getwd()
+	if wderr != nil {
+		fmt.Println("Error getting working directory:", wderr)
 		EnterToContinue()
 	}
-	dirString := workingDir
-	dir, err := os.Open(dirString)
-	if err != nil {
-		fmt.Println("Error opening directory:", err)
+
+	prefix(workingDir)
+	EnterToContinue()
+}
+
+func prefix(dirString string) {
+	// Open current directory
+	dir, oerr := os.Open(dirString)
+	if oerr != nil {
+		fmt.Println("Error opening directory:", oerr)
 		EnterToContinue()
 	}
 	defer dir.Close()
 
 	// Get list of files in current directory
-	files, err := dir.Readdirnames(0)
-	if err != nil {
-		fmt.Println("Error getting files in current directory:", err)
+	files, rerr := dir.Readdirnames(0)
+	if rerr != nil {
+		fmt.Println("Error getting files in current directory:", rerr)
 		EnterToContinue()
 	}
 
@@ -41,7 +47,6 @@ func main() {
 	var prevFileName string
 	var mapName string
 	for _, fileFullName := range files {
-
 		// Get file name, extension, and path information
 		extensionIndex := strings.LastIndex(fileFullName, ".")
 		if extensionIndex < 1 {
@@ -56,17 +61,17 @@ func main() {
 		switch extension {
 		case ".dem": // Demo file
 			// Open file
-			file, err := os.Open(filePath)
-			if err != nil {
-				fmt.Printf("Error opening %s: %s", filePath, err)
+			file, oferr := os.Open(filePath)
+			if oferr != nil {
+				fmt.Printf("Error opening %s: %s", filePath, oferr)
 				EnterToContinue()
 			}
 
 			// Read file and extract map name
 			scanner := bufio.NewScanner(file)
 			scanner.Scan()
-			rawText := string(scanner.Text()[mapStart : mapStart+mapLength])
-			for i := 0; i < len(rawText); i++ {
+			rawText := scanner.Text()[mapStart : mapStart+mapLength]
+			for i := range mapLength {
 				if !unicode.IsPrint(rune(rawText[i])) {
 					mapName = rawText[:i]
 					break
@@ -112,9 +117,9 @@ func main() {
 				fileFullName = fileFullName[dateIndex:] // Remove prefix
 			}
 			newPath := dirString + string(filepath.Separator) + mapName + "_" + fileFullName
-			err := os.Rename(filePath, newPath)
-			if err != nil {
-				fmt.Printf("Error opening %s: %s", filePath, err)
+			rnerr := os.Rename(filePath, newPath)
+			if rnerr != nil {
+				fmt.Printf("Error opening %s: %s", filePath, rnerr)
 				EnterToContinue()
 			}
 			fmt.Printf("Renamed: %s \tTo: %s\n", oldFileName, newPath[strings.LastIndex(newPath, string(filepath.Separator))+1:])
@@ -124,11 +129,10 @@ func main() {
 
 	// Print total number of maps renamed
 	fmt.Printf("Renamed %d files\n", mapCount)
-	EnterToContinue()
 }
 
 func EnterToContinue() {
 	fmt.Println("Press enter to exit...")
-	fmt.Scanln()
+	_, _ = fmt.Scanln()
 	os.Exit(0)
 }
