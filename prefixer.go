@@ -11,7 +11,6 @@ import (
 
 const mapStart = 536
 const mapLength = 260
-const eventStart = 38
 
 var mapSuffixes = [5]string{"rc", "f", "b", "a", "v"}
 
@@ -57,8 +56,8 @@ func prefix(dirString string) {
 		line := eventScanner.Text()
 		events = append(events, line)
 
-		// Only count events with valid formatting
-		if strings.Index(line, "\"") == eventStart-1 {
+		// Only update for events with valid formatting
+		if !hasEvents && strings.Contains(line, "(\"") {
 			hasEvents = true
 		}
 	}
@@ -155,18 +154,22 @@ func prefix(dirString string) {
 			if isDemo && hasEvents {
 				isMatch := false
 				for i, event := range events {
-					if event[0] != '>' && strings.HasPrefix(event[eventStart:], fileName) { // If event matches demo title
-						newEvent := event[:eventStart]
-						newEvent += strings.Replace(event[eventStart:], fileName, (mapName + "_" + fileFullName[:len(fileFullName)-4]), 1)
-						events[i] = newEvent
-						isMatch = true
-						eventCount++
-						continue // Continue loop as long as we are matching
-					}
+					if event[0] != '>' { // Skip marker lines
+						eventStart := strings.Index(event, "(\"") + 2
+						fmt.Println(event[eventStart:])
+						if eventStart > -1 && strings.HasPrefix(event[eventStart:], fileName) { // If event matches demo title
+							newEvent := event[:eventStart]
+							newEvent += strings.Replace(event[eventStart:], fileName, (mapName + "_" + fileFullName[:len(fileFullName)-4]), 1)
+							events[i] = newEvent
+							isMatch = true
+							eventCount++
+							continue // Continue loop as long as we are matching
+						}
 
-					// Stop loop once we are no longer matching
-					if isMatch {
-						break
+						// Stop loop once we are no longer matching
+						if isMatch {
+							break
+						}
 					}
 				}
 			}
