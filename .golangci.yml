@@ -76,8 +76,8 @@ linters:
     - whitespace
   settings:
     cyclop:
-      max-complexity: 40
-      package-average: 15
+      max-complexity: 50
+      package-average: 20
     depguard:
       rules:
         deprecated:

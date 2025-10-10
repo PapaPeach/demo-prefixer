@@ -17,6 +17,7 @@ var mapSuffixes = [5]string{"rc", "f", "b", "a", "v"}
 func main() {
 	// Get working directory
 	workingDir, wderr := os.Getwd()
+	// workingDir += "/test1 copy"
 	if wderr != nil {
 		fmt.Println("Error getting working directory:", wderr)
 		EnterToContinue()
@@ -67,6 +68,7 @@ func prefix(dirString string) {
 	// For each file in directory...
 	mapCount := 0
 	eventCount := 0
+	eventsIndex := 0 //TODO: Add "thorough" argument to skip this
 	var prevFileName string
 	var mapName string
 	for _, fileFullName := range files {
@@ -130,7 +132,7 @@ func prefix(dirString string) {
 				continue
 			}
 
-		default:
+		default: // other file we don't care about
 			continue
 		}
 
@@ -138,7 +140,7 @@ func prefix(dirString string) {
 		if !strings.HasPrefix(fileFullName, mapName) {
 			dateIndex := strings.Index(fileFullName, "-") - 4 // prefixYYYY-MM-DD_HH-MM-SS
 			oldFileName := fileFullName
-			if dateIndex > 0 {
+			if dateIndex > 0 && fileFullName[dateIndex] == '2' { // Validate date
 				fileFullName = fileFullName[dateIndex:] // Remove prefix
 			}
 			newPath := dirString + string(filepath.Separator) + mapName + "_" + fileFullName
@@ -154,32 +156,67 @@ func prefix(dirString string) {
 			if isDemo && hasEvents {
 				isMatch := false
 				for i, event := range events {
-					if event[0] != '>' { // Skip marker lines
+					if i >= eventsIndex && event[0] != '>' { // Skip already checked and marker lines
 						eventStart := strings.Index(event, "(\"") + 2
-						fmt.Println(event[eventStart:])
 						if eventStart > -1 && strings.HasPrefix(event[eventStart:], fileName) { // If event matches demo title
-							newEvent := event[:eventStart]
-							newEvent += strings.Replace(event[eventStart:], fileName, (mapName + "_" + fileFullName[:len(fileFullName)-4]), 1)
+							newEvent := (event[:eventStart] +
+								strings.Replace(event[eventStart:], fileName, (mapName+"_"+fileFullName[:len(fileFullName)-4]), 1))
 							events[i] = newEvent
+							eventsIndex = i + 1
 							isMatch = true
 							eventCount++
 							continue // Continue loop as long as we are matching
 						}
 
-						// Stop loop once we are no longer matching
+						// Stop loop once we are no longer matching (if for some reason reason there's no marker line)
 						if isMatch {
+							fmt.Println("Marker missing at _events.txt line:", i+1)
+							eventsIndex = i + 1
+							break
+						}
+					} else if isMatch { // Stop loop once we are no longer matching
+						eventsIndex = i + 1
+						break
+					}
+				}
+
+				// If no match was found after our starting point, circle back to start
+				if !isMatch {
+					// From start to where the above loop started
+					for i, event := range events[:eventsIndex] {
+						if event[0] != '>' { // Skip marker lines
+							eventStart := strings.Index(event, "(\"") + 2
+							if eventStart > -1 && strings.HasPrefix(event[eventStart:], fileName) { // If event matches demo title
+								newEvent := (event[:eventStart] +
+									strings.Replace(event[eventStart:], fileName, (mapName+"_"+fileFullName[:len(fileFullName)-4]), 1))
+								events[i] = newEvent
+								eventsIndex = i + 1
+								isMatch = true
+								eventCount++
+								continue // Continue loop as long as we are matching
+							}
+
+							// Stop loop once we are no longer matching (if for some reason reason there's no marker line)
+							if isMatch {
+								fmt.Println("Marker missing at _events.txt line:", i+1)
+								eventsIndex = i + 1
+								break
+							}
+						} else if isMatch { // Stop loop once we are no longer matching
+							eventsIndex = i + 1
 							break
 						}
 					}
 				}
 			}
 
+			// Print rename
 			fmt.Printf("Renamed: %s \tTo: %s\n", oldFileName, newPath[strings.LastIndex(newPath, string(filepath.Separator))+1:])
 			mapCount++
 		}
 	}
 
-	// Update _events.txt
+	// Update _events.txt with our changes
 	if eventCount > 0 {
 		// Open _events.txt for writing
 		eventsWriter, ewerr := os.OpenFile((dirString + string(filepath.Separator) + "_events.txt"), os.O_CREATE, 0644)
@@ -196,6 +233,7 @@ func prefix(dirString string) {
 				EnterToContinue()
 			}
 		}
+
 		eventsWriter.Close()
 	}
 
