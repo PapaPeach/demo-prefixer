@@ -155,8 +155,9 @@ func prefix(dirString string) {
 			// Update any associated event entries
 			if isDemo && hasEvents {
 				isMatch := false
-				for i, event := range events {
-					if i >= eventsIndex && event[0] != '>' { // Skip already checked and marker lines
+				for i := eventsIndex; i < len(events); i++ {
+					event := events[i]
+					if event[0] != '>' { // Skip marker lines
 						eventStart := strings.Index(event, "(\"") + 2
 						if eventStart > -1 && strings.HasPrefix(event[eventStart:], fileName) { // If event matches demo title
 							newEvent := (event[:eventStart] +
@@ -165,6 +166,7 @@ func prefix(dirString string) {
 							eventsIndex = i + 1
 							isMatch = true
 							eventCount++
+							fmt.Printf("Updated event: %s\t To: %s\n", event[eventStart-2:], newEvent[eventStart-2:])
 							continue // Continue loop as long as we are matching
 						}
 
@@ -193,6 +195,7 @@ func prefix(dirString string) {
 								eventsIndex = i + 1
 								isMatch = true
 								eventCount++
+								fmt.Printf("Updated event: %s\t To: %s\n", event[eventStart-2:], newEvent[eventStart-2:])
 								continue // Continue loop as long as we are matching
 							}
 
@@ -211,7 +214,7 @@ func prefix(dirString string) {
 			}
 
 			// Print rename
-			fmt.Printf("Renamed: %s \tTo: %s\n", oldFileName, newPath[strings.LastIndex(newPath, string(filepath.Separator))+1:])
+			fmt.Printf("Renamed file: %s \tTo: %s\n", oldFileName, newPath[strings.LastIndex(newPath, string(filepath.Separator))+1:])
 			mapCount++
 		}
 	}
